@@ -1,63 +1,33 @@
 const fs = require('fs');
 
-// 1. Read JSON from file
-const data = JSON.parse(fs.readFileSync('input2.json', 'utf-8'));
+// Function to compute constant term P(0) using Lagrange interpolation
+function computeConstantTerm(filePath) {
+  const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
 
-const n = BigInt(data.keys.n);
-const k = BigInt(data.keys.k);
+  const n = BigInt(data.keys.n);
+  const k = BigInt(data.keys.k);
 
-// 2. Extract and decode points
-const points = [];
+  // Decode and extract the points
+  const points = [];
 
-for (const key in data) {
-  if (key === "keys") continue;
+  for (const key in data) {
+    if (key === "keys") continue;
 
-  const x = BigInt(key);
-  const base = parseInt(data[key].base);
-  const y = BigInt(parseInt(data[key].value, base)); // decode y with base
+    const x = BigInt(key);
+    const base = parseInt(data[key].base);
+    const y = BigInt(parseInt(data[key].value, base)); // decode y with base
 
-  points.push({ x, y });
-}
-
-// Use only first `k` points (as Number because slice needs it)
-const selected = points.slice(0, Number(k));
-
-// 3. Lagrange Interpolation at x = 0
-function lagrangeAtZeroBigInt(points) {
-  let P0 = 0n;
-
-  for (let i = 0; i < points.length; i++) {
-    const { x: xi, y: yi } = points[i];
-    let numerator = 1n;
-    let denominator = 1n;
-
-    for (let j = 0; j < points.length; j++) {
-      if (i === j) continue;
-      const xj = points[j].x;
-
-      numerator *= -xj;
-      denominator *= xi - xj;
-    }
-
-    const invDenominator = modInverse(denominator);
-    const term = yi * numerator * invDenominator;
-    P0 += term;
+    points.push({ x, y });
   }
 
-  return P0;
+  // Use only first `k` points (converted to Number for slicing)
+  const selected = points.slice(0, Number(k));
+
+  // Perform Lagrange interpolation at x = 0 using floating point
+  return lagrangeAtZeroFloat(selected);
 }
 
-// Helper: modular inverse (no mod here, so just use inverse in Q)
-function modInverse(a) {
-  // For non-modular inverse over Q: just return 1/a using BigInt division
-  // In real modular field, you should implement Extended Euclidean Algorithm
-  return 1n / a; // Will fail in BigInt — we use rational approximation only in floats
-}
-
-// ⚠️ JS BigInt does NOT support fractional division!
-// ➤ So we’ll use rational approximation via float here
-// Alternatively: Implement rational BigFraction if precise rational needed
-
+// Lagrange interpolation using float (since BigInt can't handle fractions)
 function lagrangeAtZeroFloat(points) {
   let P0 = 0;
 
@@ -74,9 +44,13 @@ function lagrangeAtZeroFloat(points) {
     P0 += term;
   }
 
-  return Math.round(P0); // rounding to nearest integer
+  return Math.round(P0); // Final constant term (rounded to nearest integer)
 }
 
-const secret = lagrangeAtZeroFloat(selected); // float fallback
+// ----------- Call the function on both files -----------
 
-console.log("Secret constant term (P(0)):", secret);
+const secret1 = computeConstantTerm('input1.json');
+console.log("Secret from input1.json:", secret1);
+
+const secret2 = computeConstantTerm('input2.json');
+console.log("Secret from input2.json:", secret2);
